@@ -10,7 +10,7 @@ OPEN_AI_KEY = env("OPEN_AI_KEY", default="my_open_ai_key")
 
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="my_telegrambot_token")
 
-POSTGRES_DB = env("POSTGRES_DB", default="agent_researcher")
+POSTGRES_DB = env("POSTGRES_DB", default="agentleadscreater")
 POSTGRES_USER = env("POSTGRES_USER", default="postgres")
 POSTGRES_PASSWORD = env("POSTGRES_PASSWORD", default="my_password")
 POSTGRES_HOST = env("POSTGRES_HOST", default="localhost")
