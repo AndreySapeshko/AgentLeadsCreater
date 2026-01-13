@@ -38,6 +38,14 @@ async def fetch_url(url: str, max_chars: int = 5000) -> dict:
     return {"url": url, "content": text}
 
 
+async def fetch_html(url: str, max_chars: int = 200_000) -> dict:
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        response = await client.get(url)
+
+    html = response.text[:max_chars]
+    return {"url": url, "html": html}
+
+
 def search_web_sync(query: str):
     return asyncio.run(search_web(query))
 

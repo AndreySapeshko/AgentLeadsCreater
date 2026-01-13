@@ -1,21 +1,14 @@
 import logging
 
-from aiogram import F, Router
+from aiogram import Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
-from app.agent.detect_repeat import detect_repeat
-from app.agent.utils import ask_clarification, build_continuation_context, is_short, run_research
 from app.db.crud import (
-    build_memory_context,
-    clear_clarification_state,
     get_last_memories,
     get_memory_by_id,
     get_or_create_user,
-    get_recent_memories,
-    get_task_waiting_clarification,
     get_user_by_telegram_id,
-    save_clarification_state,
 )
 from app.db.session import AsyncSessionLocal
 
@@ -109,64 +102,3 @@ async def show_handler(message: Message, command: CommandObject):
         return
 
     await message.answer(f"📌 {memory.title}\n\n{memory.summary}")
-
-
-@router.message(F.text & ~F.text.startswith("/"))
-async def handle_task(message: Message):
-    print("ENTER handle_task")
-    user_input = message.text.strip()
-    async with AsyncSessionLocal() as session:
-        user = await get_user_by_telegram_id(session, message.from_user.id)
-        if user is None:
-            await message.answer("Сначала отправь /start, чтобы зарегистрироваться.")
-            return
-
-        memories = await get_recent_memories(session, user.id)
-
-        # 1. Проверяем: не ждём ли мы уточнение
-        pending_task = await get_task_waiting_clarification(session, user.id)
-        if pending_task:
-            memory_context = build_continuation_context(
-                pending_task.clarification_context,
-                memories,
-            )
-
-            enriched_input = "User clarification:\n" + user_input
-
-            await clear_clarification_state(session, pending_task)
-
-            await run_research(
-                user=user,
-                user_input=enriched_input,
-                session=session,
-                message=message,
-                task=pending_task,
-                memory_context=memory_context,
-            )
-            return
-
-        # 2. Обычный вход
-
-        is_repeat = await detect_repeat(user_input, memories)
-        logger.info(
-            "Agent flow: user=%s repeat=%s clarification=%s",
-            user.id,
-            is_repeat,
-            bool(pending_task),
-        )
-        if is_repeat and is_short(user_input):
-            await ask_clarification(message)
-
-            await save_clarification_state(
-                session=session,
-                user_id=user.id,
-                original_input=user_input,
-            )
-            await session.commit()
-            return
-
-        # 3. Иначе — сразу исследуем
-        memory_context = build_memory_context(memories)
-        await run_research(
-            user=user, user_input=user_input, session=session, message=message, memory_context=memory_context
-        )
